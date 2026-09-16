@@ -139,9 +139,14 @@ fi
 echo "# Install required software."
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libavfilter-dev libswscale-dev libswresample-dev 
-sudo apt install -y libopenblas-dev libatlas3-base libcamera-dev python3-opencv portaudio19-dev
-sudo apt install -y git-lfs fonts-wqy-zenhei util-linux procps hostapd iproute2 iw haveged dnsmasq iptables espeak git-lfs
+sudo apt install -y libopenblas-dev libatlas3-base libcamera-dev portaudio19-dev
+sudo apt install -y git-lfs fonts-wqy-zenhei util-linux procps hostapd iproute2 iw haveged dnsmasq iptables espeak pulseaudio-utils
+
+# Python libraries that are compiled against system libraries or the camera
+# stack. These come from apt, and the venv below inherits them via
+# --system-site-packages. Do not pip install these into the venv: a second
+# numpy/opencv copy breaks the ABI against picamera2.
+sudo apt install -y python3-opencv python3-numpy python3-pil python3-picamera2 python3-pygame python3-pyaudio python3-pyudev python3-soundfile python3-netifaces python3-psutil
 
 
 UGV_USER="${SUDO_USER:-$(logname)}"
@@ -173,12 +178,20 @@ echo "# Create a Python virtual environment."
 python -m venv --system-site-packages "$REPO_DIR/ugv-env"
 chown -R "$UGV_USER:$UGV_USER" "$REPO_DIR/ugv-env"
 
+echo "# Upgrade the venv build tooling."
+sudo -H -u "$UGV_USER" bash -c "source '$REPO_DIR/ugv-env/bin/activate' && pip install --upgrade pip setuptools wheel && deactivate"
+
 echo "# Install dependencies from requirements.txt"
 if $use_index; then
   sudo -H -u "$UGV_USER" bash -c "source '$REPO_DIR/ugv-env/bin/activate' && pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r '$REPO_DIR/requirements.txt' && deactivate"
 else
   sudo -H -u "$UGV_USER" bash -c "source '$REPO_DIR/ugv-env/bin/activate' && pip install -r '$REPO_DIR/requirements.txt' && deactivate"
 fi
+
+echo "# Install ncnn without its opencv-python dependency."
+# ncnn's wheel requires opencv-python; installing it would shadow apt's cv2
+# (which picamera2 is built against) with an incompatible OpenCV 5 copy.
+sudo -H -u "$UGV_USER" bash -c "source '$REPO_DIR/ugv-env/bin/activate' && pip install --no-deps 'ncnn>=1.0.20250916' && deactivate"
 
 echo "# Add current user to group so it can use serial."
 usermod -aG dialout "$UGV_USER"

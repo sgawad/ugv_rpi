@@ -6,6 +6,7 @@ import time
 import yaml
 import queue
 import re
+import shutil
 import subprocess
 
 curpath = os.path.realpath(__file__)
@@ -39,6 +40,11 @@ _engine = None
 _engine_lock = threading.Lock()
 _capture_lock = threading.Lock()
 _capture_thread = None
+
+
+def _pactl_available():
+    """True when the pactl binary exists (package: pulseaudio-utils)."""
+    return shutil.which('pactl') is not None
 
 
 def _pactl_has_device(kind, name):
@@ -75,6 +81,12 @@ def _init_mixer_backend():
     global usb_connected
     interval = 1.0
     attempt = 0
+    if not _pactl_available():
+        # Without pactl there is nothing to poll for, so retrying would only
+        # flood the log forever. Warn once and leave audio disabled.
+        print('audio disabled: pactl not found. '
+              'Install it with: sudo apt install -y pulseaudio-utils')
+        return
     while not _pulse_ready.is_set():
         attempt += 1
         try:

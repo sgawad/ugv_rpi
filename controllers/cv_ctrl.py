@@ -1,7 +1,18 @@
 import cv2
 import signal
 import imutils
-import mediapipe as mp
+try:
+    import mediapipe as mp
+    # mediapipe 1.x dropped the legacy mp.solutions API (hands/face/pose) and
+    # is the only release installable on Python 3.13. Treat it as absent.
+    MEDIAPIPE_AVAILABLE = hasattr(mp, 'solutions')
+except ImportError:
+    mp = None
+    MEDIAPIPE_AVAILABLE = False
+
+if not MEDIAPIPE_AVAILABLE:
+    print('[cv_ctrl] mediapipe solutions API unavailable: '
+          'hand / face / pose modes are disabled, all other CV modes work.')
 import imageio
 import threading
 import datetime, time
@@ -247,11 +258,16 @@ class OpencvFuncs():
                             "sofa", "train", "tvmonitor"]
 
         # mediapipe
-        self.mpDraw = mp.solutions.drawing_utils
+        if MEDIAPIPE_AVAILABLE:
+            self.mpDraw = mp.solutions.drawing_utils
 
-        # mediapipe detect hand
-        self.mpHands = mp.solutions.hands
-        self.hands = self.mpHands.Hands(max_num_hands=1)
+            # mediapipe detect hand
+            self.mpHands = mp.solutions.hands
+            self.hands = self.mpHands.Hands(max_num_hands=1)
+        else:
+            self.mpDraw = None
+            self.mpHands = None
+            self.hands = None
         self.max_distance = 1
         self.gs_pic_interval = 6
         self.gs_pic_last_time = time.time()
@@ -293,16 +309,22 @@ class OpencvFuncs():
         self.recover_time = 0.4              
 
         # mediapipe detect faces
-        self.mp_face_detection = mp.solutions.face_detection
-        self.face_detection = self.mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5)
+        if MEDIAPIPE_AVAILABLE:
+            self.mp_face_detection = mp.solutions.face_detection
+            self.face_detection = self.mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5)
 
-        # mediapipe detect pose
-        self.mp_pose = mp.solutions.pose
-        self.pose = self.mp_pose.Pose(static_image_mode=False, 
-                                    model_complexity=1, 
-                                    smooth_landmarks=True, 
-                                    min_detection_confidence=0.5, 
-                                    min_tracking_confidence=0.5)
+            # mediapipe detect pose
+            self.mp_pose = mp.solutions.pose
+            self.pose = self.mp_pose.Pose(static_image_mode=False, 
+                                        model_complexity=1, 
+                                        smooth_landmarks=True, 
+                                        min_detection_confidence=0.5, 
+                                        min_tracking_confidence=0.5)
+        else:
+            self.mp_face_detection = None
+            self.face_detection = None
+            self.mp_pose = None
+            self.pose = None
 
         # base data
         self.show_base_info_flag = False
@@ -853,7 +875,18 @@ class OpencvFuncs():
             return 0
         return (value - original_min) / (original_max - original_min) * (new_max - new_min) + new_min
 
+    def _mediapipe_disabled_overlay(self, img, label):
+        """Draw a 'feature unavailable' banner when mediapipe solutions is missing."""
+        overlay_buffer = np.zeros_like(img)
+        cv2.putText(overlay_buffer, label + ': mediapipe unavailable',
+                    (int(80*self.cv_h_scale), int(60*self.cv_h_scale)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7*self.cv_h_scale, (0, 0, 255), int(self.cv_h_scale))
+        self.overlay = overlay_buffer
+
     def mp_detect_hand(self, img):
+        if not MEDIAPIPE_AVAILABLE:
+            self._mediapipe_disabled_overlay(img, 'MediaPipe Hand')
+            return
         overlay_buffer = np.zeros_like(img)
         height, width = img.shape[:2]
         img = cv2.resize(img, (self.base_width, self.base_height))
@@ -1103,6 +1136,9 @@ class OpencvFuncs():
         self.overlay = overlay_buffer
 
     def mediaPipe_faces(self, img):
+        if not MEDIAPIPE_AVAILABLE:
+            self._mediapipe_disabled_overlay(img, 'MediaPipe Faces')
+            return
         overlay_buffer = np.zeros_like(img)
         height, width = img.shape[:2]
         img = cv2.resize(img, (self.base_width, self.base_height))
@@ -1132,6 +1168,9 @@ class OpencvFuncs():
         self.overlay = overlay_buffer
 
     def mediaPipe_pose(self, img):
+        if not MEDIAPIPE_AVAILABLE:
+            self._mediapipe_disabled_overlay(img, 'MediaPipe Pose')
+            return
         overlay_buffer = np.zeros_like(img)
         height, width = img.shape[:2]
         img = cv2.resize(img, (self.base_width, self.base_height))

@@ -47,6 +47,29 @@ To **upgrade** an existing upper-computer install, or to **install** this progra
 
 Run the steps **in order**. Always `cd` with a `~/...` path (not a relative `ugv_rpi/`). Clone the repo to **`~/ugv_rpi`** — `setup.sh` / `autorun.sh` / systemd services all use that location. **RoArm 3D preview is optional** (RoArm-M2 / M3 only); skip that section unless you need it.
 
+### 0. Supported OS versions
+
+Verified on **Raspberry Pi OS Trixie** (Debian 13, Python 3.13, kernel 6.18) on a Raspberry Pi 5,
+and on **Bookworm** (Debian 12, Python 3.11).
+
+`requirements.txt` lists only what the app imports. Everything compiled or
+hardware-bound (OpenCV, numpy, Pillow, picamera2, pygame, PyAudio, soundfile,
+netifaces, psutil) is installed with `apt` by `setup.sh` and picked up through
+the venv's `--system-site-packages`. Do not `pip install` those into the venv:
+a second copy of numpy or OpenCV breaks the ABI against picamera2.
+
+Two things to know about Python 3.13 / Trixie:
+
+- **Gesture Recognition, MediaPipe Faces and Pose are unavailable.** The only
+  MediaPipe release installable on Python 3.13 is 1.0.x, which removed the
+  legacy `mp.solutions` API these modes are built on. The app detects this at
+  startup, disables those three modes and runs normally; the other CV modes
+  (face detection via ncnn, motion, line tracking, color recognition, object
+  recognition) are unaffected. On Python 3.11 you can restore them by adding
+  `mediapipe==0.10.9` to `requirements.txt`.
+- **Audio needs `pactl`** (`pulseaudio-utils`), which `setup.sh` installs. Without
+  it the app prints one warning and starts with audio disabled.
+
 ### 1. Clone ugv_rpi
 
     cd ~

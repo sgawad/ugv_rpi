@@ -29,10 +29,25 @@ def is_raspberry_pi5():
                 else:
                     return False
 
-if is_raspberry_pi5():
-    base = BaseController('/dev/ttyAMA0', 115200)
-else:
-    base = BaseController('/dev/serial0', 115200)
+def resolve_uart_port():
+    """Pick the UART wired to the ESP32 on GPIO 14/15.
+
+    /dev/serial0 is the canonical symlink to that UART on every Pi model, but
+    what it points at differs: ttyAMA0 on Pi 4 and earlier, ttyAMA10 on Pi 5
+    with current firmware (where ttyAMA0 is the separate debug connector).
+    Hardcoding ttyAMA0 for Pi 5 fails on Raspberry Pi OS Trixie, so prefer the
+    symlink and fall back to the older names.
+    """
+    for candidate in ('/dev/serial0', '/dev/ttyAMA0', '/dev/ttyS0'):
+        if os.path.exists(candidate):
+            if candidate != '/dev/serial0':
+                print(f'[app] /dev/serial0 missing, using {candidate}')
+            return candidate
+    raise RuntimeError(
+        'No UART found (/dev/serial0, /dev/ttyAMA0, /dev/ttyS0). '
+        'Check dtparam=uart0=on in /boot/firmware/config.txt and reboot.')
+
+base = BaseController(resolve_uart_port(), 115200)
     
 threading.Thread(target=lambda: base.breath_light(15), daemon=True).start()
 
