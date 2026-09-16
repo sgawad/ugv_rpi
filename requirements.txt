@@ -39,9 +39,10 @@ depthai==2.30.0.0
 # and shadow apt's 4.10 that picamera2 is built against. scripts/setup.sh
 # installs it with --no-deps instead; it imports fine without opencv-python.
 
-# Notebooks under tutorials/
+# Notebooks under tutorials/ (25 of them import ipywidgets)
 jupyterlab>=4.2
 notebook>=7.2
+ipywidgets>=8.1
 
 # NOTE: mediapipe is intentionally absent. The only release installable on
 # Python 3.13 is 1.0.x, which dropped the legacy mp.solutions API this repo

@@ -52,20 +52,21 @@ systemctl --user enable ugv-jupyter.service
 sudo loginctl enable-linger $USER_NAME
 
 export PATH=$HOME/.local/bin:$PATH
-source "$USER_HOME/ugv_rpi/ugv-env/bin/activate"
-CONFIG_FILE="$USER_HOME/.jupyter/jupyter_notebook_config.py"
-if [ ! -f "$CONFIG_FILE" ]; then
-    jupyter notebook --generate-config
-fi
-
-grep -q "c.NotebookApp.token" "$CONFIG_FILE" || echo "c.NotebookApp.token = ''" >> "$CONFIG_FILE"
-grep -q "c.NotebookApp.password" "$CONFIG_FILE" || echo "c.NotebookApp.password = ''" >> "$CONFIG_FILE"
+# JupyterLab 4 generates a login token at start-up and reads its configuration
+# from jupyter_server_config.py (ServerApp), not from jupyter_notebook_config.py
+# (NotebookApp). Earlier versions of this script appended NotebookApp.token = ''
+# to the latter, which has no effect on Raspberry Pi OS Trixie: JupyterLab still
+# asks for a token. Authentication is left enabled; print the tokenized URL with
+# scripts/jupyter_url.sh instead.
+chmod +x "$USER_HOME/ugv_rpi/scripts/jupyter_url.sh" 2>/dev/null
 
 echo "Setup complete. You can start services with:"
 echo "systemctl --user start ugv-app.service"
 echo "systemctl --user start ugv-jupyter.service"
 echo "Logs: journalctl --user -u ugv-app.service -f"
 echo "      journalctl --user -u ugv-jupyter.service -f"
+echo "JupyterLab requires a login token. After starting ugv-jupyter.service, get"
+echo "the full URL with: ~/ugv_rpi/scripts/jupyter_url.sh"
 
 ROARM_DIR="$USER_HOME/roarm_web_app"
 START_ROARM="$USER_HOME/ugv_rpi/scripts/start_roarm_web_app.sh"

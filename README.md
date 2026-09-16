@@ -146,7 +146,11 @@ You can access the robot web app using a mobile phone or PC. Simply open your br
 
 For how to use the control page (drive, camera, CV, keyboard, and gamepad), see [Web UI](docs/web_ui.md). A USB gamepad can be plugged into the **PC** (browser) or into the **Raspberry Pi** (onboard `joy_ctrl`); do not use both at once. The arm 3D preview (**RoArm View**, port **3000**) is **optional** — only for RoArm-M2 / RoArm-M3; see **Optional: RoArm 3D preview** above. AccessPopup WiFi helper web UI is on port **8052** after you install it from `installconfig.sh` menu **8 → 1**.  
 
-To access JupyterLab, use `[IP]:8888` (for example, `192.168.10.50:8888`).  
+To access JupyterLab, use `[IP]:8888` (for example, `192.168.10.50:8888`). JupyterLab asks for a login token that it regenerates every time the service starts; print the full URL with the token on the Raspberry Pi:
+
+    ~/ugv_rpi/scripts/jupyter_url.sh
+
+If you would rather log in with a password you choose once, run `source ~/ugv_rpi/ugv-env/bin/activate && jupyter server password` and restart `ugv-jupyter.service`.  
 
 If the robot is not connected to a known WiFi network, it will automatically set up a hotspot named "`AccessPopup`" with the password `1234567890`. You can then use a mobile phone or PC to connect to this hotspot. Once connected, open your browser and enter `192.168.50.5:5000` in the URL bar to control the robot.  
 
