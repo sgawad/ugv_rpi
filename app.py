@@ -30,22 +30,36 @@ def is_raspberry_pi5():
                     return False
 
 def resolve_uart_port():
-    """Pick the UART wired to the ESP32 on GPIO 14/15.
+    """Return the UART the ESP32 sub-controller is wired to.
 
-    /dev/serial0 is the canonical symlink to that UART on every Pi model, but
-    what it points at differs: ttyAMA0 on Pi 4 and earlier, ttyAMA10 on Pi 5
-    with current firmware (where ttyAMA0 is the separate debug connector).
-    Hardcoding ttyAMA0 for Pi 5 fails on Raspberry Pi OS Trixie, so prefer the
-    symlink and fall back to the older names.
+    Pi 5 has a dedicated debug UART (/dev/ttyAMA10) separate from the GPIO
+    14/15 UART (/dev/ttyAMA0), and /dev/serial0 points at the debug one, so the
+    symlink must not be trusted there. /dev/ttyAMA0 only appears once
+    dtparam=uart0=on from setup.sh has taken effect, which needs a reboot.
+
+    On Pi 4 and earlier, /dev/serial0 is the right answer: it follows whether
+    the GPIO UART is the PL011 (ttyAMA0, with dtoverlay=disable-bt) or the
+    mini-UART (ttyS0).
     """
-    for candidate in ('/dev/serial0', '/dev/ttyAMA0', '/dev/ttyS0'):
+    if is_raspberry_pi5():
+        candidates = ('/dev/ttyAMA0', '/dev/serial0')
+        hint = ('dtparam=uart0=on is set in /boot/firmware/config.txt but '
+                '/dev/ttyAMA0 does not exist yet - reboot to apply it.')
+    else:
+        candidates = ('/dev/serial0', '/dev/ttyAMA0', '/dev/ttyS0')
+        hint = ('Check dtparam=uart0=on and dtoverlay=disable-bt in '
+                '/boot/firmware/config.txt, then reboot.')
+
+    for candidate in candidates:
         if os.path.exists(candidate):
-            if candidate != '/dev/serial0':
-                print(f'[app] /dev/serial0 missing, using {candidate}')
+            if candidate != candidates[0]:
+                print(f'[app] {candidates[0]} not found, falling back to '
+                      f'{candidate}. {hint}')
+            print(f'[app] ESP32 UART: {candidate}')
             return candidate
-    raise RuntimeError(
-        'No UART found (/dev/serial0, /dev/ttyAMA0, /dev/ttyS0). '
-        'Check dtparam=uart0=on in /boot/firmware/config.txt and reboot.')
+
+    raise RuntimeError(f'No UART found (tried {", ".join(candidates)}). {hint}')
+
 
 base = BaseController(resolve_uart_port(), 115200)
     
