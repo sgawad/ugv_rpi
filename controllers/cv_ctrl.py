@@ -443,6 +443,14 @@ class OpencvFuncs():
 
                 elif self.csi_camera_connected:
                     input_frame = self.picam2.capture_array()
+                    # picamera2 is configured for XRGB8888, so capture_array()
+                    # hands back 4 channels. Everything downstream - the
+                    # OpenCV modes, the recorder and the raw bgr24 pipe into
+                    # ffmpeg - expects 3. Without this the stream is fed 4
+                    # bytes per pixel against a 3-byte-per-pixel format and
+                    # comes out magenta, striped and torn.
+                    if input_frame.ndim == 3 and input_frame.shape[2] == 4:
+                        input_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGRA2BGR)
                 elif self.oak_camera_connected:
                     input_frame = self.output_queue.get().getCvFrame()
                 else:
@@ -523,7 +531,7 @@ class OpencvFuncs():
                 self.video_record_status_flag = True
             elif self.set_video_record_flag and self.video_record_status_flag:
                 cv2.circle(input_frame, (15, 15), int(5*self.cv_h_scale), (64, 64, 255), -1)
-                self.writer.append_data(np.array(cv2.cvtColor(input_frame, cv2.COLOR_BGRA2RGB)))
+                self.writer.append_data(np.array(cv2.cvtColor(input_frame, cv2.COLOR_BGR2RGB)))
             elif not self.set_video_record_flag and self.video_record_status_flag:
                 self.video_record_status_flag = False
                 self.writer.close()
