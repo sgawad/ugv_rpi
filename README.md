@@ -49,6 +49,9 @@ Run the steps **in order**. Always `cd` with a `~/...` path (not a relative `ugv
 
 ### 0. Supported OS versions
 
+For the full list of what was fixed for Trixie and everything the application
+depends on, see [Fixes and dependencies](docs/fixes_and_dependencies.md).
+
 Verified on **Raspberry Pi OS Trixie** (Debian 13, Python 3.13, kernel 6.18) on a Raspberry Pi 5,
 and on **Bookworm** (Debian 12, Python 3.11).
 
