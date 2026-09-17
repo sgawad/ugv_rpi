@@ -128,6 +128,26 @@ In the menu:
     5  Back to the Main menu
     9  Exit
 
+### 4b. Set your robot and module type
+
+`config.yaml` ships with `main_type: 2` (UGV Rover) and `module_type: 1`
+(RoArm-M2). If that does not match your robot, the Web UI builds the wrong
+controls and the app tells the ESP32 the wrong module with
+`{"T":900,"main":...,"module":...}`, so **the HUD appears to do nothing** even
+though the UART, the camera and the lights all work.
+
+    main_type    1 = RaspRover   2 = UGV Rover   3 = UGV Beast
+    module_type  0 = none        1 = RoArm-M2    2 = PT (pan-tilt)   3 = RoArm-M3
+
+Set it on the Web UI settings page, or edit `~/ugv_rpi/config.yaml` directly and
+restart the app. A pan-tilt camera robot needs `module_type: 2`; with the
+default `1` the HUD sends arm commands (`cmd_arm_ctrl`) that a pan-tilt ignores.
+
+Only one copy of `app.py` may run at a time. A second instance cannot open the
+camera (the UI then shows *camera read failed*) and both fight over the UART,
+which shows up as `[base_ctrl.feedback_data] error: ... multiple access on port`.
+`./autorun.sh` installs a systemd user service that keeps exactly one running.
+
 ### 5. inotify limit, then reboot
 
     echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
